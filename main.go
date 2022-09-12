@@ -113,6 +113,11 @@ func returnBook(c *gin.Context) {
 func sendToAzure(c *gin.Context) {
 	file, _ := c.FormFile("file")
 
+	//Parse Json String
+	value := c.Request.FormValue("data")
+
+	fmt.Println(value)
+
 	fileContent, _ := file.Open()
 	dat, err := ioutil.ReadAll(fileContent)
 	if err != nil {
