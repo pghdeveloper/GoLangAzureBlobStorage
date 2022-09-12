@@ -1,17 +1,15 @@
 package main
 
 import (
-	"errors"
-	"net/http"
-
 	"context"
-
-	"log"
-
+	"errors"
 	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type book struct {
@@ -27,14 +25,13 @@ var books = []book{
 	{ID: "3", Title: "War and Peace", Author: "Leo Tolstoy", Quantity: 6},
 }
 
-func getBooks(c *gin.Context) {
-	sent, err := sendToAzure()
-	if err != nil {
-		return
-	}
-	//c.IndentedJSON(http.StatusOK, books)
-	c.IndentedJSON(http.StatusOK, sent)
-}
+//func getBooks(c *gin.Context) {
+//sent, err := sendToAzure()
+//if err != nil {
+//return
+//}
+//c.IndentedJSON(http.StatusOK, sent)
+//}
 
 func createBook(c *gin.Context) {
 	var newBook book
@@ -112,7 +109,10 @@ func returnBook(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, book)
 }
 
-func sendToAzure() (string, error) {
+func sendToAzure(c *gin.Context) {
+	file, _ := c.FormFile("file")
+	fmt.Println(file.Filename)
+
 	fmt.Println("HI")
 	ctx := context.Background()
 
@@ -128,7 +128,8 @@ func sendToAzure() (string, error) {
 	}
 
 	fmt.Println("HI2")
-	containerName := "golangcontainer"
+	uuidWithHyphen := uuid.New()
+	containerName := "golangcontainer" + "-" + uuidWithHyphen.String()
 	containerClient := serviceClient.NewContainerClient(containerName)
 
 	fmt.Println("HI2.5")
@@ -157,15 +158,16 @@ func sendToAzure() (string, error) {
 		log.Fatalf("Failure to upload to blob: %+v", err)
 	}
 
-	return "Y", nil
+	c.IndentedJSON(http.StatusOK, "Y")
 }
 
 func main() {
 	router := gin.Default()
-	router.GET("/books", getBooks)
+	//router.GET("/books", getBooks)
 	router.GET("/books/:id", bookById)
 	router.POST("/books", createBook)
 	router.PATCH("/checkout", checkoutBook)
 	router.PATCH("/return", returnBook)
+	router.POST("/upload", sendToAzure)
 	router.Run("localhost:8081")
 }
