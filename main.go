@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -111,6 +112,13 @@ func returnBook(c *gin.Context) {
 
 func sendToAzure(c *gin.Context) {
 	file, _ := c.FormFile("file")
+
+	fileContent, _ := file.Open()
+	dat, err := ioutil.ReadAll(fileContent)
+	if err != nil {
+		log.Fatal("Cannot read file " + err.Error())
+	}
+
 	fmt.Println(file.Filename)
 
 	fmt.Println("HI")
@@ -141,8 +149,7 @@ func sendToAzure(c *gin.Context) {
 	}
 
 	fmt.Println("HI2.7")
-	data := []byte("\nhello world this is a blob\n")
-	blobName := "quickstartblob" + "-" + "golangfile"
+	blobName := file.Filename
 
 	fmt.Println("HI3")
 	blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerName+"/"+blobName, credential, nil)
@@ -151,7 +158,7 @@ func sendToAzure(c *gin.Context) {
 	}
 
 	// Upload to data to blob storage
-	_, err = blobClient.UploadBufferToBlockBlob(ctx, data, azblob.HighLevelUploadToBlockBlobOption{})
+	_, err = blobClient.UploadBufferToBlockBlob(ctx, dat, azblob.HighLevelUploadToBlockBlobOption{})
 
 	fmt.Println("HI4")
 	if err != nil {
