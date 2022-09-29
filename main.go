@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type book struct {
@@ -18,6 +18,10 @@ type book struct {
 	Title    string `json:"title"`
 	Author   string `json:"author"`
 	Quantity int    `json:"quantity"`
+}
+
+type Container struct {
+	ContainerId string
 }
 
 var books = []book{
@@ -111,12 +115,31 @@ func returnBook(c *gin.Context) {
 }
 
 func sendToAzure(c *gin.Context) {
+	fmt.Println("Intro")
 	file, _ := c.FormFile("file")
 
 	//Parse Json String
 	value := c.Request.FormValue("data")
 
 	fmt.Println(value)
+
+	// defining a struct instance
+	var container1 Container
+
+	// data in JSON format which
+	// is to be decoded
+	Data := []byte(value)
+
+	// decoding container1 struct
+	// from json format
+	err := json.Unmarshal(Data, &container1)
+
+	if err != nil {
+
+		// if error is not nil
+		// print error
+		fmt.Println(err)
+	}
 
 	fileContent, _ := file.Open()
 	dat, err := ioutil.ReadAll(fileContent)
@@ -141,8 +164,7 @@ func sendToAzure(c *gin.Context) {
 	}
 
 	fmt.Println("HI2")
-	uuidWithHyphen := uuid.New()
-	containerName := "golangcontainer" + "-" + uuidWithHyphen.String()
+	containerName := "golangcontainer" + "-" + container1.ContainerId
 	containerClient := serviceClient.NewContainerClient(containerName)
 
 	fmt.Println("HI2.5")
