@@ -114,6 +114,99 @@ func returnBook(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, book)
 }
 
+func sendToAzureFiles(c *gin.Context) {
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		log.Fatal("File too large")
+	}
+
+	files := c.Request.MultipartForm.File["attachments"]
+	//Parse Json String
+	value := c.Request.FormValue("data")
+
+	fmt.Println(value)
+
+	// defining a struct instance
+	var container1 Container
+
+	// data in JSON format which
+	// is to be decoded
+	Data := []byte(value)
+
+	// decoding container1 struct
+	// from json format
+	err := json.Unmarshal(Data, &container1)
+
+	if err != nil {
+
+		// if error is not nil
+		// print error
+		fmt.Println(err)
+	}
+
+	containerCreated := false
+	for _, fileHeader := range files {
+		if fileHeader.Size > 1000000000 {
+			log.Fatal("File Too Large")
+		}
+
+		// Open the file
+		file, _ := fileHeader.Open()
+		dat, err := ioutil.ReadAll(file)
+		if err != nil {
+			log.Fatal("Problem Opening File")
+		}
+
+		fmt.Println(fileHeader.Filename)
+
+		fmt.Println("HI")
+		ctx := context.Background()
+
+		credential, err := azblob.NewSharedKeyCredential("", "")
+		if err != nil {
+			log.Fatal("Invalid credentials with error: " + err.Error())
+		}
+
+		accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
+		serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
+		if err != nil {
+			log.Fatal("Invalid credentials with error: " + err.Error())
+		}
+
+		fmt.Println("HI2")
+		containerName := "golangcontainer" + "-" + container1.ContainerId
+		if containerCreated == false {
+			containerClient := serviceClient.NewContainerClient(containerName)
+
+			fmt.Println("HI2.5")
+			_, err = containerClient.Create(ctx, nil)
+			fmt.Println("HI2.6")
+			if err != nil {
+				fmt.Println("HI-Error")
+				log.Fatal(err)
+			}
+			containerCreated = true
+		}
+
+		fmt.Println("HI2.7")
+		blobName := fileHeader.Filename
+
+		fmt.Println("HI3")
+		blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerName+"/"+blobName, credential, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Upload to data to blob storage
+		_, err = blobClient.UploadBufferToBlockBlob(ctx, dat, azblob.HighLevelUploadToBlockBlobOption{})
+
+		fmt.Println("HI4")
+		if err != nil {
+			log.Fatalf("Failure to upload to blob: %+v", err)
+		}
+		defer file.Close()
+	}
+}
+
 func sendToAzure(c *gin.Context) {
 	fmt.Println("Intro")
 	file, _ := c.FormFile("file")
@@ -203,5 +296,6 @@ func main() {
 	router.PATCH("/checkout", checkoutBook)
 	router.PATCH("/return", returnBook)
 	router.POST("/upload", sendToAzure)
+	router.POST("/uploadMultiple", sendToAzureFiles)
 	router.Run("localhost:8081")
 }
