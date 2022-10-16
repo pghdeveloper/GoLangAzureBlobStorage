@@ -143,7 +143,29 @@ func sendToAzureFiles(c *gin.Context) {
 		fmt.Println(err)
 	}
 
-	containerCreated := false
+	ctx := context.Background()
+
+	credential, err := azblob.NewSharedKeyCredential("golangdocumentapisa", "CHZDQAHuHeEwUjhEkbpIWT0awgo/HI5WPhn7zYQVKKYcfXfESVlDW1uQmM6CMvmzTe/F7pEbXRsR+AStVzkJ/w==")
+	if err != nil {
+		log.Fatal("Invalid credentials with error: " + err.Error())
+	}
+
+	accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "golangdocumentapisa")
+	serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
+	if err != nil {
+		log.Fatal("Invalid credentials with error: " + err.Error())
+	}
+
+	containerName := "golangcontainer" + "-" + container1.ContainerId
+
+	containerClient := serviceClient.NewContainerClient(containerName)
+	fmt.Println("HI2.5")
+	_, err = containerClient.Create(ctx, nil)
+	fmt.Println("HI2.6")
+	if err != nil {
+		fmt.Println("HI-Error")
+		log.Fatal(err)
+	}
 	for _, fileHeader := range files {
 		if fileHeader.Size > 1000000000 {
 			log.Fatal("File Too Large")
@@ -159,33 +181,8 @@ func sendToAzureFiles(c *gin.Context) {
 		fmt.Println(fileHeader.Filename)
 
 		fmt.Println("HI")
-		ctx := context.Background()
-
-		credential, err := azblob.NewSharedKeyCredential("", "")
-		if err != nil {
-			log.Fatal("Invalid credentials with error: " + err.Error())
-		}
-
-		accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
-		serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
-		if err != nil {
-			log.Fatal("Invalid credentials with error: " + err.Error())
-		}
 
 		fmt.Println("HI2")
-		containerName := "golangcontainer" + "-" + container1.ContainerId
-		if containerCreated == false {
-			containerClient := serviceClient.NewContainerClient(containerName)
-
-			fmt.Println("HI2.5")
-			_, err = containerClient.Create(ctx, nil)
-			fmt.Println("HI2.6")
-			if err != nil {
-				fmt.Println("HI-Error")
-				log.Fatal(err)
-			}
-			containerCreated = true
-		}
 
 		fmt.Println("HI2.7")
 		blobName := fileHeader.Filename
