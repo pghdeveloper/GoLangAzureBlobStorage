@@ -145,12 +145,12 @@ func sendToAzureFiles(c *gin.Context) {
 
 	ctx := context.Background()
 
-	credential, err := azblob.NewSharedKeyCredential("golangdocumentapisa", "CHZDQAHuHeEwUjhEkbpIWT0awgo/HI5WPhn7zYQVKKYcfXfESVlDW1uQmM6CMvmzTe/F7pEbXRsR+AStVzkJ/w==")
+	credential, err := azblob.NewSharedKeyCredential("", "")
 	if err != nil {
 		log.Fatal("Invalid credentials with error: " + err.Error())
 	}
 
-	accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "golangdocumentapisa")
+	accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
 	serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
 	if err != nil {
 		log.Fatal("Invalid credentials with error: " + err.Error())
