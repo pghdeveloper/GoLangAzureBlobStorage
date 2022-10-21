@@ -3,115 +3,61 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
+	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gin-gonic/gin"
 )
 
-type book struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Author   string `json:"author"`
-	Quantity int    `json:"quantity"`
-}
-
 type Container struct {
 	ContainerId string
 }
 
-var books = []book{
-	{ID: "1", Title: "In Search of Lost Time", Author: "Marcel Proust", Quantity: 2},
-	{ID: "2", Title: "The Great Gatsby", Author: "F. Scott Fitzgerald", Quantity: 5},
-	{ID: "3", Title: "War and Peace", Author: "Leo Tolstoy", Quantity: 6},
-}
+func send(fileHeader *multipart.FileHeader, accountPath string, containerName string, credential *azblob.SharedKeyCredential) {
+	ctx := context.Background()
 
-//func getBooks(c *gin.Context) {
-//sent, err := sendToAzure()
-//if err != nil {
-//return
-//}
-//c.IndentedJSON(http.StatusOK, sent)
-//}
-
-func createBook(c *gin.Context) {
-	var newBook book
-
-	if err := c.BindJSON(&newBook); err != nil {
-		return
+	if fileHeader.Size > 1000000000 {
+		log.Fatal("File Too Large")
 	}
 
-	books = append(books, newBook)
-	c.IndentedJSON(http.StatusCreated, newBook)
-}
-
-func bookById(c *gin.Context) {
-	id := c.Param("id")
-	book, err := getBookById(id)
-
+	// Open the file
+	file, _ := fileHeader.Open()
+	dat, err := ioutil.ReadAll(file)
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Book not found."})
-		return
+		log.Fatal("Problem Opening File")
 	}
 
-	c.IndentedJSON(http.StatusOK, book)
-}
+	fmt.Println(fileHeader.Filename)
 
-func getBookById(id string) (*book, error) {
-	for i, b := range books {
-		if b.ID == id {
-			return &books[i], nil
-		}
-	}
+	fmt.Println("HI")
 
-	return nil, errors.New("book not found")
-}
+	fmt.Println("HI2")
 
-func checkoutBook(c *gin.Context) {
-	id, ok := c.GetQuery("id")
+	fmt.Println("HI2.7")
+	blobName := fileHeader.Filename
 
-	if !ok {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Missing id query parameter."})
-		return
-	}
-
-	book, err := getBookById(id)
-
+	fmt.Println("HI3")
+	blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerName+"/"+blobName, credential, nil)
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Book not found."})
-		return
+		log.Fatal(err)
 	}
 
-	if book.Quantity <= 0 {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Book not available."})
-		return
-	}
+	// Upload to data to blob storage
+	_, err = blobClient.UploadBufferToBlockBlob(ctx, dat, azblob.HighLevelUploadToBlockBlobOption{})
 
-	book.Quantity -= 1
-	c.IndentedJSON(http.StatusOK, book)
-}
-
-func returnBook(c *gin.Context) {
-	id, ok := c.GetQuery("id")
-
-	if !ok {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Missing id query parameter."})
-		return
-	}
-
-	book, err := getBookById(id)
-
+	fmt.Println("HI4")
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Book not found."})
-		return
+		log.Fatalf("Failure to upload to blob: %+v", err)
 	}
-
-	book.Quantity += 1
-	c.IndentedJSON(http.StatusOK, book)
+	defer file.Close()
+	amt := time.Duration(rand.Intn(250))
+	time.Sleep(time.Millisecond * amt)
 }
 
 func sendToAzureFiles(c *gin.Context) {
@@ -167,40 +113,7 @@ func sendToAzureFiles(c *gin.Context) {
 		log.Fatal(err)
 	}
 	for _, fileHeader := range files {
-		if fileHeader.Size > 1000000000 {
-			log.Fatal("File Too Large")
-		}
-
-		// Open the file
-		file, _ := fileHeader.Open()
-		dat, err := ioutil.ReadAll(file)
-		if err != nil {
-			log.Fatal("Problem Opening File")
-		}
-
-		fmt.Println(fileHeader.Filename)
-
-		fmt.Println("HI")
-
-		fmt.Println("HI2")
-
-		fmt.Println("HI2.7")
-		blobName := fileHeader.Filename
-
-		fmt.Println("HI3")
-		blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerName+"/"+blobName, credential, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Upload to data to blob storage
-		_, err = blobClient.UploadBufferToBlockBlob(ctx, dat, azblob.HighLevelUploadToBlockBlobOption{})
-
-		fmt.Println("HI4")
-		if err != nil {
-			log.Fatalf("Failure to upload to blob: %+v", err)
-		}
-		defer file.Close()
+		go send(fileHeader, accountPath, containerName, credential)
 	}
 }
 
@@ -287,11 +200,6 @@ func sendToAzure(c *gin.Context) {
 
 func main() {
 	router := gin.Default()
-	//router.GET("/books", getBooks)
-	router.GET("/books/:id", bookById)
-	router.POST("/books", createBook)
-	router.PATCH("/checkout", checkoutBook)
-	router.PATCH("/return", returnBook)
 	router.POST("/upload", sendToAzure)
 	router.POST("/uploadMultiple", sendToAzureFiles)
 	router.Run("localhost:8081")
