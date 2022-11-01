@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,78 @@ import (
 
 type Container struct {
 	ContainerId string
+}
+
+func downloadFile(c *gin.Context) {
+	containerName := c.Param("containerId")
+	fileName := c.Param("fileName")
+	ctx := context.Background()
+	credential, err := azblob.NewSharedKeyCredential("", "")
+	if err != nil {
+		log.Fatal("Invalid credentials with error: " + err.Error())
+	}
+
+	accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
+
+	blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerName+"/"+fileName, credential, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Download the blob
+	get, err := blobClient.Download(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	downloadedData := &bytes.Buffer{}
+	reader := get.Body(azblob.RetryReaderOptions{})
+	_, err = downloadedData.ReadFrom(reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = reader.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(downloadedData.String())
+	c.Header("Content-Disposition", "attachment; filename="+fileName)
+	c.Data(http.StatusOK, "application/pdf", downloadedData.Bytes())
+}
+
+func getFileNames(c *gin.Context) {
+	containerId := c.Param("containerId")
+	ctx := context.Background()
+	credential, err := azblob.NewSharedKeyCredential("", "")
+	if err != nil {
+		log.Fatal("Invalid credentials with error: " + err.Error())
+	}
+
+	accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
+	serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
+	if err != nil {
+		log.Fatal("Invalid credentials with error: " + err.Error())
+	}
+
+	containerClient := serviceClient.NewContainerClient(containerId)
+
+	pager := containerClient.ListBlobsFlat(nil)
+
+	var strArray []string
+	for pager.NextPage(ctx) {
+		resp := pager.PageResponse()
+
+		for _, v := range resp.ContainerListBlobFlatSegmentResult.Segment.BlobItems {
+			fmt.Println(*v.Name)
+			strArray = append(strArray, *v.Name)
+		}
+	}
+
+	if err = pager.Err(); err != nil {
+		log.Fatalf("Failure to list blobs: %+v", err)
+	}
+	c.IndentedJSON(http.StatusOK, strArray)
 }
 
 func send(fileHeader *multipart.FileHeader, accountPath string, containerName string, credential *azblob.SharedKeyCredential) {
@@ -120,6 +193,8 @@ func sendToAzureFiles(c *gin.Context) {
 
 func main() {
 	router := gin.Default()
+	router.GET("/getListOfDocumentsById/:containerId", getFileNames)
 	router.POST("/uploadMultiple", sendToAzureFiles)
+	router.GET("download/:containerId/:fileName", downloadFile)
 	router.Run("localhost:8081")
 }
