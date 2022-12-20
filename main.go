@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"mime/multipart"
@@ -32,7 +31,7 @@ type InMemoryFile struct {
 	Content  []byte
 }
 
-func createZipFile(inMemoryFiles []InMemoryFile) {
+func createZipFile(inMemoryFiles []*InMemoryFile) []byte{
 	fmt.Println("we are in the zipData function")
 	buf := new(bytes.Buffer)
 
@@ -57,7 +56,7 @@ func createZipFile(inMemoryFiles []InMemoryFile) {
 	}
 
 	//write the zipped file to the disk
-	ioutil.WriteFile("Hello.zip", buf.Bytes(), 0777)
+	return buf.Bytes()
 }
 
 func downloadMultiple(c *gin.Context) {
@@ -79,6 +78,7 @@ func downloadMultiple(c *gin.Context) {
 		log.Fatal("Invalid credentials with error: " + err.Error())
 	}
 
+	inMemoryFiles := []*InMemoryFile{}
 	for _, containerId := range containerIds.ContainerIds {
 		containerClient := serviceClient.NewContainerClient(containerId)
 
@@ -98,6 +98,7 @@ func downloadMultiple(c *gin.Context) {
 			log.Fatalf("Failure to list blobs: %+v", err)
 		}
 		
+
 		for _, blob := range strArray {
 			fmt.Println(accountPath+containerId+"/"+blob)
 			blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerId+"/"+blob, credential, nil)
@@ -125,12 +126,18 @@ func downloadMultiple(c *gin.Context) {
 				log.Fatal(err)
 			}
 
+			inMemoryFile := new(InMemoryFile)
+			inMemoryFile.Content = downloadedData.Bytes()
+			inMemoryFile.FileName = blob
 
-			fmt.Println(downloadedData.String())
+			inMemoryFiles = append(inMemoryFiles, inMemoryFile)
 		}
 	}
 
-	c.IndentedJSON(http.StatusOK, "Y")
+	zipFile := createZipFile(inMemoryFiles)
+
+	c.Header("Content-Disposition", "attachment; filename=zipFile.zip")
+    c.Data(http.StatusOK, "application/octet-stream", zipFile)
 }
 
 func downloadFile(c *gin.Context) {
@@ -170,7 +177,7 @@ func downloadFile(c *gin.Context) {
 
 	fmt.Println(downloadedData.String())
 	c.Header("Content-Disposition", "attachment; filename="+fileName)
-	c.Data(http.StatusOK, "application/pdf", downloadedData.Bytes()) //TODO: send as a byte array
+	c.Data(http.StatusOK, "application/octet-stream", downloadedData.Bytes()) //TODO: send as a byte array
 }
 
 func getFileNames(c *gin.Context) {
