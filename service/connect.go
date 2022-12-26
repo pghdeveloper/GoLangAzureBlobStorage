@@ -8,8 +8,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 )
 
-func Connect() azblob.ServiceClient {
-	config, err := util.LoadConfig("../..")
+func Connect() (azblob.ServiceClient, string, *azblob.SharedKeyCredential) {
+	config, err := util.LoadConfig(".")
 	if err != nil {
 		log.Fatal("cannot load config:", err)
 	}
@@ -25,5 +25,5 @@ func Connect() azblob.ServiceClient {
 		log.Fatal("Invalid credentials with error: " + err.Error())
 	}
 
-	return serviceClient
+	return serviceClient, accountPath, credential
 }

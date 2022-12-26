@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"example/GoLangAzureBlobStorage/service"
 	"fmt"
 	"io"
 	"log"
@@ -286,16 +287,18 @@ func sendToAzureFiles(c *gin.Context) {
 
 	ctx := context.Background()
 
-	credential, err := azblob.NewSharedKeyCredential("", "")
-	if err != nil {
-		log.Fatal("Invalid credentials with error: " + err.Error())
-	}
+	serviceClient, accountPath, credential := service.Connect()
 
-	accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
-	serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
-	if err != nil {
-		log.Fatal("Invalid credentials with error: " + err.Error())
-	}
+	// credential, err := azblob.NewSharedKeyCredential("", "")
+	// if err != nil {
+	// 	log.Fatal("Invalid credentials with error: " + err.Error())
+	// }
+
+	// accountPath := fmt.Sprintf("https://%s.blob.core.windows.net/", "")
+	// serviceClient, err := azblob.NewServiceClientWithSharedKey(accountPath, credential, nil)
+	// if err != nil {
+	// 	log.Fatal("Invalid credentials with error: " + err.Error())
+	// }
 
 	containerName := "golangcontainer" + "-" + container1.ContainerId
 
