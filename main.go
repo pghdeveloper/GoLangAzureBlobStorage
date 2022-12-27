@@ -159,36 +159,9 @@ func downloadFile(c *gin.Context) {
 	//c.Data(http.StatusOK, "application/octet-stream", downloadedData.Bytes())
 }
 
-func getFileNames(c *gin.Context) {
-	containerId := c.Param("containerId")
-	ctx := context.Background()
-
-	serviceClient, _, _ := service.Connect()
-
-	containerClient := serviceClient.NewContainerClient(containerId)
-
-	pager:= containerClient.ListBlobsFlat(nil)
-
-	var strArray []string
-	for pager.NextPage(ctx) {
-		resp := pager.PageResponse()
-
-		for _, v := range resp.ContainerListBlobFlatSegmentResult.Segment.BlobItems {
-			fmt.Println(*v.Name)
-			strArray = append(strArray, *v.Name)
-		}
-	}
-
-	if pager.Err() != nil {
-		log.Fatalf("Failure to list blobs: %+v", pager.Err())
-	}
-
-	c.IndentedJSON(http.StatusOK, strArray)
-}
-
 func main() {
 	router := gin.Default()
-	router.GET("/getListOfDocumentsById/:containerId", getFileNames)
+	router.GET("/getListOfDocumentsById/:containerId", service.GetFileNames)
 	router.POST("/uploadMultiple", service.SendToAzureFiles)
 	router.GET("download/:containerId/:fileName", downloadFile)
 	router.POST("downloadmultiple", downloadMultiple)
