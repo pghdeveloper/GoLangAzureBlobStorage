@@ -9,7 +9,9 @@ import (
 	"math/rand"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gin-gonic/gin"
 )
@@ -100,7 +102,9 @@ func SendToAzureFiles(c *gin.Context) {
 	fmt.Println("HI2.6")
 	if err != nil {
 		fmt.Println("HI-Error")
-		log.Fatal(err)
+		if !strings.Contains(err.Error(), "ContainerAlreadyExists") {
+			log.Fatal(err)
+		}	
 	}
 	for _, fileHeader := range files {
 		go send(fileHeader, accountPath, containerName, credential)
