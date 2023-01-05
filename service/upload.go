@@ -73,7 +73,7 @@ func SendToAzureFiles(c *gin.Context) {
 	fmt.Println(value)
 
 	// defining a struct instance
-	var container1 Container
+	var container Container
 
 	// data in JSON format which
 	// is to be decoded
@@ -81,7 +81,7 @@ func SendToAzureFiles(c *gin.Context) {
 
 	// decoding container1 struct
 	// from json format
-	err := json.Unmarshal(Data, &container1)
+	err := json.Unmarshal(Data, &container)
 
 	if err != nil {
 
@@ -94,7 +94,7 @@ func SendToAzureFiles(c *gin.Context) {
 
 	serviceClient, accountPath, credential := Connect()
 
-	containerName := "golangcontainer" + "-" + container1.ContainerId
+	containerName := "golangcontainer" + "-" + container.ContainerId
 
 	containerClient := serviceClient.NewContainerClient(containerName)
 	fmt.Println("HI2.5")
