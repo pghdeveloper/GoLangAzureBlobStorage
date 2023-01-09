@@ -1,6 +1,7 @@
 package main
 
 import (
+	"example/GoLangAzureBlobStorage/repo"
 	"example/GoLangAzureBlobStorage/service"
 	"github.com/gin-gonic/gin"
 )
@@ -8,6 +9,8 @@ import (
 
 
 func main() {
+	service.Repos = &repo.AzureRepo {}
+
 	router := gin.Default()
 	router.GET("/getListOfDocumentsById/:containerId", service.GetFileNames)
 	router.POST("/uploadMultiple", service.SendToAzureFiles)
