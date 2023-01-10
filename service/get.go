@@ -23,7 +23,11 @@ func GetFileNames(c *gin.Context) {
 	fmt.Println("Before checking Length of str array")
 	fmt.Println("strArray: ", strArray)
 	if len(strArray) == 0 {
-		log.Fatal("Files not exist")
+		log.Println("Files Not Exist")
+		c.JSON(http.StatusNotFound, gin.H {
+		 	"Message": "Files not found",
+		})
+		return
 	}
 
 	c.IndentedJSON(http.StatusOK, strArray)
