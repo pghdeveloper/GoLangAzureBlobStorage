@@ -137,7 +137,7 @@ func DownloadFile(c *gin.Context) {
 	downloadedData, err := DownloadRepos.DownloadFileFromCloud(ctx, containerId, fileName)
 	if (err != nil) {
 		log.Println("Error: " + err.Error())
-		c.JSON(http.StatusNotFound, gin.H {
+		c.JSON(http.StatusInternalServerError, gin.H {
 		 	"Message": "Issue Downloading the file",
 		})
 		return
