@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gin-gonic/gin"
@@ -121,35 +122,25 @@ func DownloadMultiple(c *gin.Context) {
     //c.Data(http.StatusOK, "application/octet-stream", zipFile)
 }
 
+type DownloadRepository interface {
+	DownloadFileFromCloud(ctx context.Context, containerId string, fileName string) (*bytes.Buffer, error)
+}
+
+var DownloadRepos DownloadRepository
+
 func DownloadFile(c *gin.Context) {
-	containerName := c.Param("containerId")
+	containerId := c.Param("containerId")
 	fileName := c.Param("fileName")
 	ctx := context.Background()
 
-	_, accountPath, credential := Connect()
-
-	blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerName+"/"+fileName, credential, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(accountPath+containerName+"/"+fileName)
-
-	// Download the blob
-	get, err := blobClient.Download(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	downloadedData := &bytes.Buffer{}
-	reader := get.Body(azblob.RetryReaderOptions{})
-	_, err = downloadedData.ReadFrom(reader)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = reader.Close()
-	if err != nil {
-		log.Fatal(err)
+	fmt.Println("HI HI")
+	downloadedData, err := DownloadRepos.DownloadFileFromCloud(ctx, containerId, fileName)
+	if (err != nil) {
+		log.Println("Error: " + err.Error())
+		c.JSON(http.StatusNotFound, gin.H {
+		 	"Message": "Issue Downloading the file",
+		})
+		return
 	}
 
 	fmt.Println(downloadedData.String())
