@@ -11,6 +11,7 @@ import (
 func main() {
 	service.Repos = &repo.AzureRepo {}
 	service.DownloadRepos = &repo.AzureDownloadRepo {}
+	service.DownloadMultipleRepos = &repo.AzureDownloadMultipleRepo {}
 
 	router := gin.Default()
 	router.GET("/getListOfDocumentsById/:containerId", service.GetFileNames)

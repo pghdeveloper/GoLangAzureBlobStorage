@@ -4,24 +4,26 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"example/GoLangAzureBlobStorage/lib"
 	"fmt"
 	"log"
 	"net/http"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gin-gonic/gin"
 )
 
-type Containers struct {
-	ContainerIds []string
+type DownloadRepository interface {
+	DownloadFileFromCloud(ctx context.Context, containerId string, fileName string) (*bytes.Buffer, error)
 }
 
-type InMemoryFile struct {
-	FileName string
-	Content  []byte
+type DownloadMultipleRepository interface {
+	DownloadMultipleFilesFromCloud(ctx context.Context, containerIds lib.Containers) ([]*lib.InMemoryFile, error)
 }
 
-func createZipFile(inMemoryFiles []*InMemoryFile) []byte{
+var DownloadRepos DownloadRepository
+var DownloadMultipleRepos DownloadMultipleRepository
+
+func createZipFile(inMemoryFiles []*lib.InMemoryFile) []byte{
 	fmt.Println("we are in the zipData function")
 	buf := new(bytes.Buffer)
 
@@ -50,69 +52,20 @@ func createZipFile(inMemoryFiles []*InMemoryFile) []byte{
 }
 
 func DownloadMultiple(c *gin.Context) {
-	var containerIds Containers
+	var containerIds lib.Containers
 	ctx := context.Background()
 
 	if err := c.BindJSON(&containerIds); err != nil {
 		return
 	}
 
-	serviceClient, accountPath, credential := Connect()
-
-	inMemoryFiles := []*InMemoryFile{}
-	for _, containerId := range containerIds.ContainerIds {
-		containerClient := serviceClient.NewContainerClient(containerId)
-
-		pager := containerClient.ListBlobsFlat(nil)
-
-		var strArray []string
-		for pager.NextPage(ctx) {
-			resp := pager.PageResponse()
-
-			for _, v := range resp.ContainerListBlobFlatSegmentResult.Segment.BlobItems {
-				fmt.Println(*v.Name)
-				strArray = append(strArray, *v.Name)
-			}
-		}
-
-		if pager.Err() != nil {
-			log.Fatalf("Failure to list blobs: %+v", pager.Err())
-		}
-		
-
-		for _, blob := range strArray {
-			fmt.Println(accountPath+containerId+"/"+blob)
-			blobClient, err := azblob.NewBlockBlobClientWithSharedKey(accountPath+containerId+"/"+blob, credential, nil)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			fmt.Println("About to Download")
-
-			get, err := blobClient.Download(ctx, nil)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			fmt.Println("Done Downloading")
-
-			downloadedData := &bytes.Buffer{}
-			reader := get.Body(azblob.RetryReaderOptions{})
-			_, err = downloadedData.ReadFrom(reader)
-			if err != nil {
-				log.Fatal(err)
-			}
-			err = reader.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			inMemoryFile := new(InMemoryFile)
-			inMemoryFile.Content = downloadedData.Bytes()
-			inMemoryFile.FileName = blob
-
-			inMemoryFiles = append(inMemoryFiles, inMemoryFile)
-		}
+	inMemoryFiles, err := DownloadMultipleRepos.DownloadMultipleFilesFromCloud(ctx, containerIds)
+	if (err != nil) {
+		log.Println("Error: " + err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H {
+		 	"Message": "Issue Downloading file(s)",
+		})
+		return
 	}
 
 	zipFile := createZipFile(inMemoryFiles)
@@ -121,12 +74,6 @@ func DownloadMultiple(c *gin.Context) {
 	//c.Header("Content-Disposition", "attachment; filename=zipFile.zip")
     //c.Data(http.StatusOK, "application/octet-stream", zipFile)
 }
-
-type DownloadRepository interface {
-	DownloadFileFromCloud(ctx context.Context, containerId string, fileName string) (*bytes.Buffer, error)
-}
-
-var DownloadRepos DownloadRepository
 
 func DownloadFile(c *gin.Context) {
 	containerId := c.Param("containerId")
