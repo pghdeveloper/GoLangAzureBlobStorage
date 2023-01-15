@@ -47,13 +47,19 @@ func createZipFile(inMemoryFiles []*lib.InMemoryFile) []byte{
 }
 
 func DownloadMultiple(c *gin.Context) {
+	fmt.Println("Begin Process of Downloading Multiple")
 	var containerIds lib.Containers
 	ctx := context.Background()
 
+	fmt.Println(c.Request.Body)
+	fmt.Println("About to Bind Json")
+
 	if err := c.BindJSON(&containerIds); err != nil {
+		fmt.Println("Error Binding JSON: " + err.Error())
 		return
 	}
 
+	fmt.Println("About to go to Download Multiple Repo")
 	inMemoryFiles, err := DownloadMultipleRepos.DownloadMultipleFilesFromCloud(ctx, containerIds)
 	if (err != nil) {
 		log.Println("Error: " + err.Error())
@@ -64,6 +70,7 @@ func DownloadMultiple(c *gin.Context) {
 	}
 
 	zipFile := createZipFile(inMemoryFiles)
+	fmt.Println("About to return Zip File to Client")
 
 	c.JSON(200, zipFile)
 	//c.Header("Content-Disposition", "attachment; filename=zipFile.zip")
