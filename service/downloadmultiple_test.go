@@ -15,6 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type NotCorrectJson struct {
+	Name string
+}
+
 type DownloadMultipleFileTests struct {
 	name string
 	response []byte
@@ -30,6 +34,35 @@ type mockDownloadMultipleFile struct {
 func (c *mockDownloadMultipleFile) DownloadMultipleFilesFromCloud(ctx context.Context, containerIds lib.Containers) ([]*lib.InMemoryFile, error){
 	fmt.Println("Mock Function called")
 	return c.response, c.err
+}
+
+func TestDownloadFileReturn400BecauseJsonRequestNotAccurate(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	ctx := getTestGinContext(w)
+
+	notCorrectJson := new(NotCorrectJson)
+	notCorrectJson.Name = "1"
+
+	mockJsonPost(ctx, notCorrectJson)
+
+	DownloadMultiple(ctx)
+
+	var errorResponse errorResponse
+	
+	err := json.Unmarshal((w.Body.Bytes()), &errorResponse)
+	assert.NoError(t, err)
+
+	e, err := json.Marshal(errorResponse)
+	assert.NoError(t, err)
+
+	fmt.Println("Body: " + w.Body.String())
+	fmt.Println("Response:", errorResponse.Message)
+
+	errorResponseString := string(e)
+	assert.EqualValues(t, 400, w.Code)
+
+	assert.Equal(t, `{"Message":"Json Request not correct"}`, errorResponseString)
 }
 
 func TestDownloadMultipleFile(t *testing.T) {
@@ -85,11 +118,13 @@ func TestDownloadMultipleFile(t *testing.T) {
 
 }
 
-func mockJsonPost(c *gin.Context, container interface{}) {
+func mockJsonPost(c *gin.Context, jsonStruct interface{}) {
 	c.Request.Method = "POST"
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	jsonbytes, err := json.Marshal(container)
+	fmt.Println(jsonStruct)
+
+	jsonbytes, err := json.Marshal(jsonStruct)
     if err != nil {
         panic(err)
     }
@@ -98,6 +133,7 @@ func mockJsonPost(c *gin.Context, container interface{}) {
     // the bytes buffer though doesn't implement io.Closer,
     // so you wrap it in a no-op closer
     c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonbytes))
+	fmt.Println(c.Request.Body)
 	fmt.Println("finished mock Json Post")
 }
 

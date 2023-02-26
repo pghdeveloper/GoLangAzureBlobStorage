@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -54,13 +53,32 @@ func DownloadMultiple(c *gin.Context) {
 	fmt.Println(c.Request.Body)
 	fmt.Println("About to Bind Json")
 
-	if err := c.BindJSON(&containerIds); err != nil {
-		fmt.Println("Error Binding JSON: " + err.Error())
+	err := c.BindJSON(&containerIds)
+	fmt.Println(containerIds)
+	fmt.Println(len(containerIds.ContainerIds))
+
+	if (len(containerIds.ContainerIds) == 0) {
+		fmt.Println("HIHIHI")
+	}
+	fmt.Println("Before Error check")
+
+	if (err != nil || len(containerIds.ContainerIds) == 0) {
+		if (err != nil) {
+			fmt.Println("Error Binding JSON: " + err.Error())
+		}
+		if (len(containerIds.ContainerIds) == 0) {
+			fmt.Println("Error Binding JSON: Issue with Json Request")
+		}
+		c.JSON(http.StatusBadRequest, gin.H {
+			"Message": "Json Request not correct",
+		})
 		return
 	}
 
+	fmt.Println(containerIds)
 	fmt.Println("About to go to Download Multiple Repo")
 	inMemoryFiles, err := DownloadMultipleRepos.DownloadMultipleFilesFromCloud(ctx, containerIds)
+	fmt.Println("Done downloading from Download Multiple Repo")
 	if (err != nil) {
 		log.Println("Error: " + err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H {
